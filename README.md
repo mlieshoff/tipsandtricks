@@ -2,6 +2,23 @@
 
 ## EJS Pagination 
 ````
+<ul class="divide-y border rounded">
+  <% messages.forEach(msg => { %>
+    <li class="p-4"><%= msg.content %></li>
+  <% }) %>
+</ul>
+
+<!-- Pagination -->
+<div class="flex justify-center mt-6 space-x-2">
+  <% for (let i = 1; i <= totalPages; i++) { %>
+    <a href="/messages?page=<%= i %>"
+       class="px-4 py-2 border rounded 
+              <%= currentPage === i ? 'bg-blue-600 text-white' : 'bg-white hover:bg-blue-100' %>">
+      <%= i %>
+    </a>
+  <% } %>
+</div>
+
 <% if (totalPages > 1) { %>
   <nav class="flex justify-center mt-6 space-x-1 text-sm" aria-label="Pagination">
 
