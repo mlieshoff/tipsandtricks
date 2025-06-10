@@ -2,6 +2,24 @@
 
 ## EJS Pagination 
 ````
+app.get('/messages', async (req, res) => {
+  const perPage = 10;
+  const page = parseInt(req.query.page) || 1;
+
+  const [totalCount, messages] = await Promise.all([
+    db.countMessages(), // z. B. SELECT COUNT(*) FROM messages
+    db.getMessages(page, perPage) // SELECT * LIMIT x OFFSET y
+  ]);
+
+  const totalPages = Math.ceil(totalCount / perPage);
+
+  res.render('pages/messages', {
+    messages,
+    currentPage: page,
+    totalPages
+  });
+});
+
 <ul class="divide-y border rounded">
   <% messages.forEach(msg => { %>
     <li class="p-4"><%= msg.content %></li>
