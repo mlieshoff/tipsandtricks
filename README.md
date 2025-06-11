@@ -75,3 +75,38 @@ res.render('messages', {
 <a href="<%= baseQuery %>page=<%= i %>">...</a>
 ````
 
+Ajax
+
+````
+app.get('/reports/list', async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const reports = await getReportsForPage(page); // z. B. DB-Zugriff
+
+  res.render('partials/reportList', { reports });
+});
+
+
+<div id="reportContainer">
+  <%- include('../partials/reportList', { reports }) %>
+</div>
+
+<nav>
+  <button onclick="loadPage(2)">Seite 2</button>
+</nav>
+
+<script>
+  function loadPage(page) {
+    fetch(`/reports/list?page=${page}`)
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById('reportContainer').innerHTML = html;
+      });
+  }
+</script>
+
+<ul id="reportList" class="divide-y border rounded">
+  <% reports.forEach(report => { %>
+    <li class="p-4"><%= report.title %></li>
+  <% }) %>
+</ul>
+````
