@@ -269,3 +269,98 @@ ggf. .env und docker-compose.yml nach Deployment löschen (optional in Script er
 
 
 ---
+Hier ist die erweiterte, robuste Version von deploy.sh, inklusive:
+
+✅ Validierung der Secrets
+✅ Backup von alten .env- und Compose-Dateien
+✅ Farbausgabe
+✅ Fehlerausgabe
+✅ Automatischer Cleanup optional
+
+
+---
+
+💻 deploy.sh
+
+#!/bin/bash
+
+set -euo pipefail
+
+### Farben
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+info()    { echo -e "${CYAN}ℹ️  $1${NC}"; }
+success() { echo -e "${GREEN}✅ $1${NC}"; }
+error()   { echo -e "${RED}❌ $1${NC}" >&2; }
+
+### Dateien und Pfade
+TEMPLATE_ENV=".env.template"
+TARGET_ENV=".env"
+TEMPLATE_COMPOSE="docker-compose.template.yml"
+TARGET_COMPOSE="docker-compose.yml"
+SECRETS_DIR="./.secrets"
+BACKUP_DIR="./.backup"
+
+REQUIRED_SECRETS=("db_user.txt" "db_pass.txt" "jwt_secret.txt")
+
+### Vorbereitung
+info "Prüfe erforderliche Dateien..."
+mkdir -p "$BACKUP_DIR"
+
+for secret in "${REQUIRED_SECRETS[@]}"; do
+  if [[ ! -f "$SECRETS_DIR/$secret" ]]; then
+    error "Fehlende Secret-Datei: $SECRETS_DIR/$secret"
+    exit 1
+  fi
+done
+
+[[ -f "$TARGET_ENV" ]] && cp "$TARGET_ENV" "$BACKUP_DIR/env.bak"
+[[ -f "$TARGET_COMPOSE" ]] && cp "$TARGET_COMPOSE" "$BACKUP_DIR/compose.bak"
+
+### Ersetze .env
+info "Ersetze Secrets in .env..."
+sed \
+  -e "s|__DB_USER__|$(< $SECRETS_DIR/db_user.txt)|g" \
+  -e "s|__DB_PASS__|$(< $SECRETS_DIR/db_pass.txt)|g" \
+  "$TEMPLATE_ENV" > "$TARGET_ENV"
+
+### Ersetze docker-compose.yml
+info "Ersetze Secrets in docker-compose.yml..."
+sed \
+  -e "s|__JWT_SECRET__|$(< $SECRETS_DIR/jwt_secret.txt)|g" \
+  "$TEMPLATE_COMPOSE" > "$TARGET_COMPOSE"
+
+### Starte Deployment
+info "Starte podman-compose..."
+if podman-compose up -d; then
+  success "Deployment erfolgreich abgeschlossen."
+else
+  error "Deployment fehlgeschlagen."
+  exit 1
+fi
+
+### Optional: Cleanup generierte Dateien nach Start
+# rm "$TARGET_ENV" "$TARGET_COMPOSE"
+# info ".env und docker-compose.yml wurden entfernt (Cleanup aktiviert)."
+
+exit 0
+
+
+---
+
+📁 Empfohlene Struktur
+
+infra/
+├── deploy.sh
+├── .env.template
+├── docker-compose.template.yml
+├── .backup/
+├── .secrets/
+│   ├── db_user.txt
+│   ├── db_pass.txt
+│   └── jwt_secret.txt
+
+----
