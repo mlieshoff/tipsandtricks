@@ -137,6 +137,135 @@ await fastify.register(formbody) await fastify.register(swagger, { openapi: { in
 
 fastify.listen({ port: 3000 }, err => { if (err) throw err console.log('Server bereit unter http://localhost:3000') })
 
-
-
 ````
+# sed credentials replacement
+
+Hier ist eine einfache und effektive sed-Lösung, um Credentials oder Platzhalterwerte in deinen .env-, docker-compose.yml- oder Config-Dateien beim Deployment zu ersetzen:
+
+
+---
+
+🔧 Beispiel: .env.template
+
+DB_USER=__DB_USER__
+DB_PASS=__DB_PASS__
+
+
+---
+
+✅ sed-Befehl (Linux/macOS kompatibel)
+
+sed \
+  -e "s|__DB_USER__|meinuser|g" \
+  -e "s|__DB_PASS__|geheim123|g" \
+  .env.template > .env
+
+🔒 Die generierte .env enthält dann echte Werte:
+
+DB_USER=meinuser
+DB_PASS=geheim123
+
+
+---
+
+💡 Für docker-compose.yml geht es genauso
+
+sed \
+  -e "s|__JWT_SECRET__|$(cat .secrets/jwt.txt)|g" \
+  -e "s|__API_KEY__|$MY_API_KEY|g" \
+  docker-compose.template.yml > docker-compose.yml
+
+
+---
+
+📁 Empfehlung für Struktur
+
+infra/
+├── docker-compose.template.yml
+├── .env.template
+├── deploy.sh         # führt das sed-Replacement durch
+└── .secrets/
+    ├── jwt.txt
+    └── pg-password.txt
+
+
+---
+
+🧪 Sicherheitstipps
+
+.env und docker-compose.yml nicht ins Git committen
+
+Replaced-Dateien ggf. am Ende löschen (rm .env)
+
+Skript nur auf vertrauenswürdigen Systemen verwenden
+
+
+
+---
+
+Hier ist ein fertiges, sicheres und leicht anpassbares Beispiel für dein deploy.sh-Script – ideal für deine Podman-/Docker-Infrastruktur mit .env- und docker-compose-Templates:
+
+
+---
+
+✅ deploy.sh
+
+#!/bin/bash
+
+set -e  # bricht bei Fehler ab
+
+echo "🔧 Starte Deployment..."
+
+# Pfade
+TEMPLATE_ENV=".env.template"
+TARGET_ENV=".env"
+TEMPLATE_COMPOSE="docker-compose.template.yml"
+TARGET_COMPOSE="docker-compose.yml"
+SECRETS_DIR="./.secrets"
+
+# Ersetze Platzhalter in .env
+echo "📄 Ersetze Secrets in .env..."
+sed \
+  -e "s|__DB_USER__|$(cat $SECRETS_DIR/db_user.txt)|g" \
+  -e "s|__DB_PASS__|$(cat $SECRETS_DIR/db_pass.txt)|g" \
+  $TEMPLATE_ENV > $TARGET_ENV
+
+# Ersetze Platzhalter in docker-compose.yml
+echo "📄 Ersetze Secrets in docker-compose.yml..."
+sed \
+  -e "s|__JWT_SECRET__|$(cat $SECRETS_DIR/jwt_secret.txt)|g" \
+  $TEMPLATE_COMPOSE > $TARGET_COMPOSE
+
+# Deployment starten
+echo "🚀 Starte podman-compose..."
+podman-compose up -d
+
+echo "✅ Deployment abgeschlossen!"
+
+
+---
+
+📁 Struktur dazu
+
+infra/
+├── deploy.sh
+├── docker-compose.template.yml
+├── .env.template
+├── .secrets/
+│   ├── db_user.txt
+│   ├── db_pass.txt
+│   └── jwt_secret.txt
+
+
+---
+
+🔐 Sicherheit
+
+.secrets/ in .gitignore aufnehmen
+
+chmod +x deploy.sh nicht vergessen
+
+ggf. .env und docker-compose.yml nach Deployment löschen (optional in Script ergänzbar)
+
+
+---
