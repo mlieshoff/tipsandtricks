@@ -112,7 +112,7 @@ app.get('/reports/list', async (req, res) => {
 ````
 
 # fastify openapi
-
+````
 // 1. Installiere die folgenden Pakete: // npm install fastify @fastify/swagger @fastify/swagger-ui @fastify/formbody fastify-openapi-glue zod // npm install --save-dev openapi-typescript-codegen
 
 // 2. Beispielhafte OpenAPI-Datei (openapi.yaml)
@@ -137,4 +137,4 @@ await fastify.register(formbody) await fastify.register(swagger, { openapi: { in
 
 fastify.listen({ port: 3000 }, err => { if (err) throw err console.log('Server bereit unter http://localhost:3000') })
 
-
+````
