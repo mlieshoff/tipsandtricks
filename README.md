@@ -110,3 +110,31 @@ app.get('/reports/list', async (req, res) => {
   <% }) %>
 </ul>
 ````
+
+# fastify openapi
+
+// 1. Installiere die folgenden Pakete: // npm install fastify @fastify/swagger @fastify/swagger-ui @fastify/formbody fastify-openapi-glue zod // npm install --save-dev openapi-typescript-codegen
+
+// 2. Beispielhafte OpenAPI-Datei (openapi.yaml)
+
+/** openapi: 3.0.0 info: title: Message API version: 1.0.0 paths: /messages: post: summary: Neue Nachricht anlegen operationId: createMessage requestBody: required: true content: application/json: schema: $ref: '#/components/schemas/MessageCreateDto' responses: '201': description: Nachricht erstellt /messages: get: summary: Alle Nachrichten abrufen operationId: getMessages responses: '200': description: Liste der Nachrichten content: application/json: schema: type: array items: $ref: '#/components/schemas/MessageDto' components: schemas: MessageCreateDto: type: object required: - content properties: content: type: string MessageDto: type: object properties: id: type: string content: type: string */
+
+// 3. Generiere DTOs und Router-Glue: // npx openapi-typescript-codegen --input openapi.yaml --output ./src/generated --client none
+
+// 4. Fastify-Server mit openapi-glue
+
+import Fastify from 'fastify' import swagger from '@fastify/swagger' import swaggerUI from '@fastify/swagger-ui' import formbody from '@fastify/formbody' import FastifyOpenapiGlue from 'fastify-openapi-glue' import { z } from 'zod' import { MessageCreateDto, MessageDto } from './generated/models'
+
+const fastify = Fastify()
+
+const SPEC = './openapi.yaml' const SERVICE = { async createMessage(req: any, reply: any) { const schema = z.object({ content: z.string() }) const validated = schema.parse(req.body) const message: MessageDto = { id: crypto.randomUUID(), content: validated.content } messages.push(message) reply.code(201).send() }, async getMessages(req: any, reply: any) { reply.send(messages) } }
+
+const options = { specification: SPEC, service: SERVICE, noAdditional: true, strict: true }
+
+let messages: MessageDto[] = []
+
+await fastify.register(formbody) await fastify.register(swagger, { openapi: { info: { title: 'Message API', version: '1.0.0' } } }) await fastify.register(swaggerUI, { routePrefix: '/docs' }) await fastify.register(FastifyOpenapiGlue, options)
+
+fastify.listen({ port: 3000 }, err => { if (err) throw err console.log('Server bereit unter http://localhost:3000') })
+
+
