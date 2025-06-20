@@ -137,4 +137,6 @@ await fastify.register(formbody) await fastify.register(swagger, { openapi: { in
 
 fastify.listen({ port: 3000 }, err => { if (err) throw err console.log('Server bereit unter http://localhost:3000') })
 
+
+
 ````
