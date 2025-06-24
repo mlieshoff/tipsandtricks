@@ -669,3 +669,148 @@ infra/
 │   └── jwt_secret.txt
 
 ----
+# podman traefik 
+
+Super! Hier kommt ein funktionierendes Minimalbeispiel für Traefik mit Podman rootless, inklusive:
+
+traefik als Reverse Proxy
+
+whoami als Testservice
+
+HTTPS via selbstsigniertem Zertifikat
+
+Alles in einem rootless-kompatiblen Setup
+
+
+
+---
+
+📁 Verzeichnisstruktur
+
+projekt/
+├── docker-compose.yml
+├── traefik.yml
+├── certs/
+│   ├── local.crt
+│   └── local.key
+
+
+---
+
+📝 1. traefik.yml
+
+api:
+  dashboard: true
+  insecure: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+tls:
+  certificates:
+    - certFile: "/certs/local.crt"
+      keyFile: "/certs/local.key"
+
+providers:
+  docker: {}
+
+
+---
+
+📝 2. docker-compose.yml
+
+version: "3.9"
+
+services:
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    command:
+      - "--providers.docker=true"
+      - "--api.dashboard=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "9000:8080" # Dashboard über http://localhost:9000
+    volumes:
+      - "./traefik.yml:/etc/traefik/traefik.yml"
+      - "./certs:/certs:ro"
+      - "$XDG_RUNTIME_DIR/podman/podman.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+  whoami:
+    image: traefik/whoami
+    container_name: whoami
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`localhost`)"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls=true"
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+
+
+---
+
+🛠️ 3. Zertifikate erstellen
+
+mkdir -p certs
+
+openssl req -x509 -newkey rsa:2048 -nodes \
+  -keyout certs/local.key \
+  -out certs/local.crt \
+  -days 365 \
+  -subj "/CN=localhost"
+
+
+---
+
+▶️ 4. Starten
+
+podman-compose down -v
+podman-compose up -d
+
+
+---
+
+✅ Test
+
+🔒 https://localhost → sollte whoami anzeigen
+
+🧰 http://localhost:9000/dashboard/ → Dashboard
+
+
+> Hinweis: Dein Browser wird eine Warnung wegen des selbstsignierten Zertifikats anzeigen – akzeptieren.
+
+
+
+
+---
+
+❗️ Wichtig für Rootless Podman
+
+Falls podman-compose nicht automatisch podman.socket startet:
+
+systemctl --user start podman.socket
+loginctl enable-linger $USER
+
+Oder explizit:
+
+export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
+
+
+---
+
+Wenn du möchtest, erweitere ich das Beispiel gerne mit deinem Auth-Service, Metabase, RabbitMQ oder sonstigen Komponenten. Sag einfach Bescheid!
+
+
