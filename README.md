@@ -813,4 +813,152 @@ export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
 
 Wenn du möchtest, erweitere ich das Beispiel gerne mit deinem Auth-Service, Metabase, RabbitMQ oder sonstigen Komponenten. Sag einfach Bescheid!
 
+---
+
+
+Sehr gerne! Hier bekommst du ein komplett lauffähiges Podman-rootless-Traefik-Setup mit providers.file statt Docker-Labels. Das bedeutet:
+
+Du konfigurierst alle Routen in einer eigenen YAML-Datei
+
+Kein Zugriff auf docker.sock nötig → perfekt für rootless
+
+TLS über self-signed Zertifikat
+
+
+
+---
+
+📁 Verzeichnisstruktur
+
+projekt/
+├── docker-compose.yml
+├── traefik.yml              # Traefik-Konfiguration
+├── routes.yml               # File-based Routing
+├── certs/
+│   ├── local.crt
+│   └── local.key
+
+
+---
+
+📝 traefik.yml
+
+api:
+  dashboard: true
+  insecure: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+tls:
+  certificates:
+    - certFile: "/certs/local.crt"
+      keyFile: "/certs/local.key"
+
+providers:
+  file:
+    filename: /etc/traefik/routes.yml
+    watch: true
+
+
+---
+
+📝 routes.yml
+
+http:
+  routers:
+    whoami-router:
+      rule: "Host(`localhost`)"
+      entryPoints:
+        - websecure
+      service: whoami-service
+      tls: true
+
+  services:
+    whoami-service:
+      loadBalancer:
+        servers:
+          - url: "http://whoami:80"
+
+
+---
+
+📝 docker-compose.yml
+
+version: "3.9"
+
+services:
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    command:
+      - "--providers.file.filename=/etc/traefik/routes.yml"
+      - "--api.dashboard=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "9000:8080"
+    volumes:
+      - "./traefik.yml:/etc/traefik/traefik.yml"
+      - "./routes.yml:/etc/traefik/routes.yml"
+      - "./certs:/certs:ro"
+    networks:
+      - web
+
+  whoami:
+    image: traefik/whoami
+    container_name: whoami
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+
+
+---
+
+🛠️ Zertifikat erstellen
+
+Falls noch nicht vorhanden:
+
+mkdir -p certs
+
+openssl req -x509 -newkey rsa:2048 -nodes \
+  -keyout certs/local.key \
+  -out certs/local.crt \
+  -days 365 \
+  -subj "/CN=localhost"
+
+
+---
+
+▶️ Starten
+
+podman-compose down -v
+podman-compose up -d
+
+
+---
+
+✅ Test
+
+➡️ https://localhost → zeigt die whoami-Antwort
+
+➡️ http://localhost:9000/dashboard/ → zeigt das Traefik-Dashboard
+
+
+> Hinweis: Bei self-signed-Zertifikat gibt dein Browser eine Warnung – das ist normal.
+
+
+
+
+---
+
+Wenn du möchtest, erweitere ich es dir auch gleich mit auth, rabbitmq, oder einer dynamischen .env-basierten Routensteuerung. Sag einfach Bescheid: "Mach mir ein Auth-Service Beispiel" oder ähnliches.
 
