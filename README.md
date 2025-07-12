@@ -1,5 +1,48 @@
 # tipsandtricks
 
+## Server Monitor 
+
+````
+#!/bin/bash
+
+# ==== Konfiguration ====
+URLS=(
+  "https://example.com"
+  "http://localhost:3000"
+  "https://doesnotexist.local"
+)
+
+HOSTS=(
+  "google.com:80"
+  "localhost:8080"
+  "192.168.1.1:22"
+)
+
+# ==== URL-Check ====
+echo ">>> URL Reachability Check (via curl)"
+for url in "${URLS[@]}"; do
+  status=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+  if [ "$status" == "000" ]; then
+    echo "❌ $url => NOT reachable"
+  else
+    echo "✅ $url => HTTP $status"
+  fi
+done
+
+# ==== Host:Port-Check ====
+echo ""
+echo ">>> Host:Port Reachability Check (via nc)"
+for hostport in "${HOSTS[@]}"; do
+  IFS=':' read -r host port <<< "$hostport"
+  nc -z -w2 "$host" "$port" &>/dev/null
+  if [ $? -eq 0 ]; then
+    echo "✅ $host:$port => reachable"
+  else
+    echo "❌ $host:$port => NOT reachable"
+  fi
+done
+````
+
 ## EJS Pagination 
 ````
 app.get('/messages', async (req, res) => {
