@@ -3,6 +3,59 @@
 ## Server Monitor 
 
 ````
+
+{
+  "urls": [
+    "https://example.com",
+    "http://localhost:3000",
+    "https://doesnotexist.local"
+  ],
+  "hosts": [
+    "google.com:80",
+    "localhost:8080",
+    "192.168.1.1:22"
+  ]
+}
+#!/bin/bash
+
+CONFIG_FILE="check-endpoints-config.json"
+
+# Farben
+GREEN="\e[32m"
+RED="\e[31m"
+BLUE="\e[34m"
+RESET="\e[0m"
+
+# Check für jq
+if ! command -v jq >/dev/null 2>&1; then
+  echo -e "${RED}❌ 'jq' ist nicht installiert. Bitte mit 'sudo apt install jq' installieren.${RESET}"
+  exit 1
+fi
+
+# URL-Check
+echo -e "${BLUE}\n>>> URL Reachability Check${RESET}"
+jq -r '.urls[]' "$CONFIG_FILE" | while read -r url; do
+  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 "$url")
+  if [ "$code" == "000" ]; then
+    echo -e "❌ ${RED}${url} => NOT reachable${RESET}"
+  else
+    echo -e "✅ ${GREEN}${url} => HTTP $code${RESET}"
+  fi
+done
+
+# Host-Port-Check
+echo -e "${BLUE}\n>>> Host:Port Reachability Check${RESET}"
+jq -r '.hosts[]' "$CONFIG_FILE" | while read -r hostport; do
+  IFS=':' read -r host port <<< "$hostport"
+  nc -z -w2 "$host" "$port" >/dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    echo -e "✅ ${GREEN}${host}:${port} => reachable${RESET}"
+  else
+    echo -e "❌ ${RED}${host}:${port} => NOT reachable${RESET}"
+  fi
+done
+
+
 #!/bin/bash
 
 # ==== Konfiguration ====
